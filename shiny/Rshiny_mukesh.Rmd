@@ -1,0 +1,147 @@
+---
+title: |
+       | R Shiny Assignment
+author: 
+- name: Mukesh Kumar Singh
+date: '`r format(Sys.Date(), "%B %d, %Y")`'
+output:
+  html_document:
+    toc: false
+    toc_float: false
+    css : Styles/styles.css
+  
+  prettydoc::html_pretty:
+    theme: cayman
+    highlight: github
+    css : Styles/pretty_styles.css
+
+runtime: shiny
+---
+
+![](Logos/logo.png){.mulogo}
+
+```{r echo=FALSE}
+#Uploading File
+library(shiny)
+options(shiny.maxRequestSize=102400*1024^2)
+inputPanel(
+  fileInput('datafile', 'Choose CSV file'),
+  actionButton("submitButton","Submit")
+)
+
+#Extracting Data
+dataset <- reactive({
+  infile <- input$datafile
+  
+  if (is.null(infile)) {
+    # User has not uploaded a file yet
+    return(data.frame())
+  }else{
+    dataset <- read.csv(infile$datapath)
+    return(dataset)
+  }
+})
+
+
+#Extracting column list
+collist <- reactive({
+  infile <- input$datafile
+  
+  if (is.null(infile)) {
+    # User has not uploaded a file yet
+    return(data.frame())
+  }else{
+    tempcollist <- dataset
+    collist <- colnames(dataset())
+    return(collist[-1])
+  }
+})
+
+
+#Extracting row list
+rowlist <- reactive({
+  infile <- input$datafile
+  
+  if (is.null(infile)) {
+    # User has not uploaded a file yet
+    return(data.frame())
+  }else{
+    rowlist <- dataset()[,1]
+    return(rowlist)
+  }
+})
+
+p("Click Submit to see data")
+
+#Observe event for submit button
+observeEvent(eventExpr = input$submitButton,{
+  
+  print("input$columnHist")
+  print(input$columnHist)
+  output$tableToPrint <- renderTable(head(dataset()))
+  output$sum <- renderPrint({
+      summary(dataset())
+  })
+  output$str <- renderPrint({
+      str(dataset())
+  })
+  output$col <- renderText(input$columnHist)
+
+})
+
+#Conditional panel if submit button is pressed
+##For tabs to represent data
+conditionalPanel(condition = 'input.submitButton>0',{
+  tabsetPanel(type="tab", 
+            tabPanel("Data", tableOutput("tableToPrint")),
+            tabPanel("Structure", verbatimTextOutput("str")),
+            tabPanel("Summary",verbatimTextOutput("sum"))
+            
+            )
+  
+})
+##For Proceeding  further
+conditionalPanel(condition = 'input.submitButton>0',{
+  inputPanel(p("Let's play with data : "),
+    actionButton("proceedButton","Click to Proceed")
+  )
+})
+
+#Render UI
+renderUI({
+  if(input$proceedButton){
+    sidebarLayout(
+      sidebarPanel(
+        inputPanel(
+              selectInput("columnHist", "Select the row name to be ploted", choices =  collist())
+      )  
+    
+      ),
+      mainPanel(
+        
+        plotOutput("myplot")
+      )
+    
+    )  
+  }
+    
+})
+
+#Observe event for column selected
+#For ploting graph
+observeEvent(eventExpr = input$columnHist,{
+  print("ran this")
+  column <- input$columnHist
+              output$myplot <- renderPlot({
+                plot(dataset()[,column] ,ylab="Percentage of Population",xlab="States",
+                main = "Line Chart for the column selected")
+                lines(dataset()[,column],type="b",col="maroon",lty=2,lwd=2)
+                axis(1,at = 1:length(dataset()[,1]),labels = dataset()[,1])
+  
+              })
+})
+
+
+```
+
+
